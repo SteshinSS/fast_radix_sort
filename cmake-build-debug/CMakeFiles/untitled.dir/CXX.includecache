@@ -1,0 +1,36 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/kpenblw/untitled/main.cpp
+boost/sort/spreadsort/spreadsort.hpp
+/home/kpenblw/untitled/boost/sort/spreadsort/spreadsort.hpp
+semen_sort.h
+/home/kpenblw/untitled/semen_sort.h
+iostream
+-
+vector
+-
+random
+-
+limits
+-
+algorithm
+-
+chrono
+-
+
+/home/kpenblw/untitled/semen_sort.h
+iostream
+-
+vector
+-
+tiff.h
+-
+algorithm
+-
+
