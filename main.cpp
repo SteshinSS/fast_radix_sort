@@ -1,5 +1,5 @@
-#include "boost/sort/spreadsort/spreadsort.hpp"
 #include "semen_sort.h"
+#include <boost/sort/spreadsort/spreadsort.hpp>
 #include <iostream>
 #include <vector>
 #include <random>
@@ -17,7 +17,6 @@ void PrintArray(const std::vector<int>& vec) {
 
 
 std::vector<int> GenerateArray(int n, int min, int max, std::mt19937& mersenne_engine) {
-    // std::uniform_int_distribution<int> dist {min, max};
     std::uniform_int_distribution<int> dist {min, max};
     auto gen = [&dist, &mersenne_engine](){
         return dist(mersenne_engine);
@@ -34,7 +33,6 @@ void RunStressTest(int total_iterations) {
 
     std::uniform_int_distribution<int> length_generator {0, 1000000};
     std::uniform_int_distribution<int> complexity_generator {std::numeric_limits<int>::min(), std::numeric_limits<int>::max()};
-    //std::uniform_int_distribution<int> complexity_generator {-10, 20};
 
     for (int i = 0; i < total_iterations; ++i) {
         if (i % 10 == 0) {
@@ -44,7 +42,6 @@ void RunStressTest(int total_iterations) {
         int a = complexity_generator(mersenne_engine);
         int b = complexity_generator(mersenne_engine);
         std::vector<int> vec = GenerateArray(length, std::min(a, b), std::max(a, b), mersenne_engine);
-        //PrintArray(vec);
         std::vector<int> std_vec = vec;
         std::vector<int> semen_1_vec = vec;
         std::vector<int> semen_2_vec = vec;
@@ -53,22 +50,16 @@ void RunStressTest(int total_iterations) {
         std::vector<int> semen_10_vec = vec;
         std::vector<int> semen_15_vec = vec;
         std::sort(std_vec.begin(), std_vec.end());
-        /*
-        InCacheSort<1U>(semen_1_vec.begin(), semen_1_vec.end());
-        InCacheSort<2U>(semen_2_vec.begin(), semen_2_vec.end());
-        InCacheSort<3U>(semen_3_vec.begin(), semen_3_vec.end());
-        InCacheSort<4U>(semen_4_vec.begin(), semen_4_vec.end());
-        InCacheSort<10U>(semen_10_vec.begin(), semen_10_vec.end());
-        InCacheSort<15U>(semen_15_vec.begin(), semen_15_vec.end());
+
+        InCacheSort<std::vector<int>::iterator, 1U>(semen_1_vec.begin(), semen_1_vec.end());
+        InCacheSort<std::vector<int>::iterator, 2U>(semen_2_vec.begin(), semen_2_vec.end());
+        InCacheSort<std::vector<int>::iterator, 3U>(semen_3_vec.begin(), semen_3_vec.end());
+        InCacheSort<std::vector<int>::iterator, 4U>(semen_4_vec.begin(), semen_4_vec.end());
+        InCacheSort<std::vector<int>::iterator, 10U>(semen_10_vec.begin(), semen_10_vec.end());
+        InCacheSort<std::vector<int>::iterator, 15U>(semen_15_vec.begin(), semen_15_vec.end());
 
         if (std_vec != semen_1_vec || std_vec != semen_2_vec || std_vec != semen_3_vec ||
             std_vec != semen_4_vec || std_vec != semen_10_vec || std_vec != semen_15_vec) {
-            std::cout << "Error: " << std::endl;
-            PrintArray(vec);
-        } */
-        InCacheSort<std::vector<int>::iterator, 10U>(semen_1_vec.begin(), semen_1_vec.end());
-        boost::sort::spreadsort::spreadsort(semen_1_vec.begin(), semen_1_vec.end());
-        if (std_vec != semen_1_vec) {
             std::cout << "Error: " << std::endl;
             PrintArray(vec);
         }
@@ -82,53 +73,28 @@ void RunBenchmarks() {
 
     int a = complexity_generator(mersenne_engine);
     int b = complexity_generator(mersenne_engine);
-    std::vector<int> vec = GenerateArray(10'000'000, std::min(a, b), std::max(a, b), mersenne_engine);
+    //std::vector<int> vec = GenerateArray(8, 0, 3, mersenne_engine);
+    std::vector<int> vec = {2, 1, 0, 0, 1, 2, 2, 3};
+    //PrintArray(vec);
+    //std::sort(vec.begin(), vec.end());
+    //std::reverse(vec.begin(), vec.end());
     auto start = std::chrono::high_resolution_clock::now();
-    InCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
+    //InCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
+    OutOfCacheSort<10>(vec.begin(), vec.end());
     //std::sort(vec.begin(), vec.end());
     //boost::sort::spreadsort::spreadsort(vec.begin(), vec.end());
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << std::chrono::duration <double, std::micro>(end - start).count() << std::endl;
-/*
-    for (size_t size = 1; size <= 10'000'000; size *= 10) {
-        int a = complexity_generator(mersenne_engine);
-        int b = complexity_generator(mersenne_engine);
-        std::vector<int> vec = GenerateArray(size, std::min(a, b), std::max(a, b), mersenne_engine);
-        auto start = std::chrono::high_resolution_clock::now();
-        InCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
-        //std::sort(vec.begin(), vec.end());
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Size: " << size << " time: " << std::chrono::duration <double, std::micro>(end - start).count() << std::endl;
-    }
-
-    constexpr unsigned bin = 3;
-    {
-        int a = complexity_generator(mersenne_engine);
-        int b = complexity_generator(mersenne_engine);
-        std::vector<int> vec = GenerateArray(8000, std::min(a, b), std::max(a, b), mersenne_engine);
-        auto start = std::chrono::high_resolution_clock::now();
-        InCacheSort<std::vector<int>::iterator, bin>(vec.begin(), vec.end());
-        //std::sort(vec.begin(), vec.end());
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << std::chrono::duration <double, std::micro>(end - start).count() << std::endl;
-    }
-
-    {
-        int a = complexity_generator(mersenne_engine);
-        int b = complexity_generator(mersenne_engine);
-        std::vector<int> vec = GenerateArray(10'000'000, std::min(a, b), std::max(a, b), mersenne_engine);
-        auto start = std::chrono::high_resolution_clock::now();
-        InCacheSort<std::vector<int>::iterator, bin>(vec.begin(), vec.end());
-        //std::sort(vec.begin(), vec.end());
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << std::chrono::duration <double, std::micro>(end - start).count() << std::endl;
-    } */
+    //std::cout << std::min(a, b) << std::endl;
+    //std::cout << std::max(a, b) << std::endl;
 }
 
 int main()
 {
+    /*
+    for (int i = 0; i < 1000; ++i) {
+        RunBenchmarks();
+    }*/
     RunBenchmarks();
     //RunStressTest(10000);
-    //std::vector<int> a(-2147483648, 2147483647);
-    //InCacheSort<1U>(a.begin(), a.end());
 }
