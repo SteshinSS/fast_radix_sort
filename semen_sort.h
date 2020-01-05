@@ -5,6 +5,7 @@
 #include <algorithm>
 
 constexpr int MINIMUM_ELEMENTS = 1000;
+constexpr int ELEMENTS_IN_CACHE = 8000;
 
 template <class RandomAccessIterator>
 inline bool
@@ -195,17 +196,15 @@ void OutOfCacheSort(const std::vector<int>::iterator& begin, const std::vector<i
         ends[i] = ends[i - 1] + histogram[i];
     }
 
-    std::vector<int> last_item(total_buckets, 0);
+    std::vector<int> buffer_pos(total_buckets, 0);
     std::vector<int> offset(total_buckets, 0);
     std::vector<size_t> buffer_offset(total_buckets, 0);
 
     const size_t cacheline_size = 64 / sizeof(int);
-    // const size_t cacheline_size = 4 * sizeof(int);
     std::vector<std::vector<int>> buffer(total_buckets, std::vector<int>(cacheline_size, 0));
     uint32_t start = 0;
     for (int i = 0; i < total_buckets; ++i) {
         buffer_offset[i] = (reinterpret_cast<size_t>(&(*(begin + start))) % 64) / sizeof(int);
-        //buffer_offset[i] = (begin + start)
         if (ends[i] - start < cacheline_size) {
             buffer_offset[i] = std::max(buffer_offset[i], cacheline_size - (ends[i] - start));
         }
@@ -213,56 +212,88 @@ void OutOfCacheSort(const std::vector<int>::iterator& begin, const std::vector<i
         for (int j = 0; j < (cacheline_size - buffer_offset[i]); ++j) {
             buffer[i][j + buffer_offset[i]] = *(begin + start + j);
         }
-        last_item[i] = buffer[i][cacheline_size - 1];
-        buffer[i][cacheline_size - 1] = buffer_offset[i];
+        buffer_pos[i] = buffer_offset[i];
         offset[i] = start;
         start += histogram[i];
     }
     int current = *begin;
-    int bucket;
+    int start_bucket = 0;
+    int bucket = -1;
     int pos;
-    
-    do {
-        std::cout << "hello" << std::endl;
-        do {
-            bucket = GetKey(current, u_min, log_div);
-            std::cout << bucket << std::endl;
-            pos = buffer[bucket][cacheline_size - 1]++;
-            std::swap(buffer[bucket][pos], current);
 
+    while (start_bucket < total_buckets && offset[start_bucket] == ends[start_bucket]) {
+        ++start_bucket;
+    }
+    if (start_bucket == total_buckets) {
+        // return
+    }
+    current = buffer[start_bucket][buffer_pos[start_bucket]];
+    bool we_done = false;
+    do {
+        do {
+            if (bucket == start_bucket) {
+                start_bucket = 0;
+                while (start_bucket < total_buckets && offset[start_bucket] == ends[start_bucket]) {
+                    ++start_bucket;
+                }
+                if (start_bucket == total_buckets) {
+                    we_done = true;
+                    break; // WARNING
+                }
+                current = buffer[start_bucket][buffer_pos[start_bucket]];
+            }
+            bucket = GetKey(current, u_min, log_div);
+            pos = buffer_pos[bucket]++;
+            std::swap(buffer[bucket][pos], current);
         } while (pos != cacheline_size - 1);
+        if (we_done) {
+            break;
+        }
         for (int i = buffer_offset[bucket]; i < cacheline_size; ++i) {
             *(begin + offset[bucket] + i - buffer_offset[bucket]) = buffer[bucket][i];
         }
         offset[bucket] += cacheline_size - buffer_offset[bucket];
-        current = last_item[bucket];
-        if (offset[bucket] == ends[bucket]) {
-            bucket = 0;
-            while (bucket < total_buckets && offset[bucket] == ends[bucket]) {
-                ++bucket;
-            }
-            if (bucket == total_buckets) {
-                break;
+        if (offset[bucket] != ends[bucket]) {
+            if (ends[bucket] - offset[bucket] < cacheline_size) {
+                buffer_offset[bucket] = cacheline_size - (ends[bucket] - offset[bucket]);
+                for (int i = 0; i < cacheline_size - buffer_offset[bucket]; ++i) {
+                    buffer[bucket][i + buffer_offset[bucket]] = *(begin + offset[bucket] + i);
+                }
+                buffer_pos[bucket] = buffer_offset[bucket];
             } else {
-
-                continue;
+                buffer_offset[bucket] = 0;
+                for (int i = 0; i < cacheline_size; ++i) {
+                    buffer[bucket][i] = *(begin + offset[bucket] + i);
+                }
+                buffer_pos[bucket] = 0;
             }
-        }
-
-        if (ends[bucket] - offset[bucket] < cacheline_size) {
-            buffer_offset[bucket] = cacheline_size - (ends[bucket] - offset[bucket]);
-            for (int i = 0; i < cacheline_size - buffer_offset[bucket]; ++i) {
-                buffer[bucket][i + buffer_offset[bucket]] = *(begin + offset[bucket] + i);
-            }
-            last_item[bucket] = buffer[bucket][cacheline_size - 1];
-            buffer[bucket][cacheline_size - 1] = buffer_offset[bucket];
-        } else {
-            buffer_offset[bucket] = 0;
-            for (int i = 0; i < cacheline_size; ++i) {
-                buffer[bucket][i] = *(begin + offset[bucket] + i);
-            }
-            last_item[bucket] = buffer[bucket][cacheline_size - 1];
-            buffer[bucket][cacheline_size - 1] = 0;
         }
     } while (true);
+    if (log_div == 0) {
+        return;
+    }
+
+    if (offset.front() > 1) {
+        if (offset.front() < MINIMUM_ELEMENTS) {
+            std::sort(begin, begin + offset.front());
+        } else if (offset.front() < ELEMENTS_IN_CACHE) {
+            InCacheSort<std::vector<int>::iterator, log_total_buckets>(begin , begin + offset.front());
+        }
+        else {
+            OutOfCacheSort<log_total_buckets>(begin, begin + offset.front());
+        }
+    }
+    for (unsigned i = 0; i + 1 < offset.size(); ++i) {
+        if (offset[i + 1] - offset[i] <= 1) {
+            continue;
+        }
+        if (offset[i + 1] - offset[i] < MINIMUM_ELEMENTS) {
+            std::sort(begin + offset[i], begin + offset[i + 1]);
+        } else if (offset[i + 1] - offset[i] < ELEMENTS_IN_CACHE) {
+            InCacheSort<std::vector<int>::iterator, log_total_buckets>(begin + offset[i], begin + offset[i + 1]);
+        }
+        else {
+            OutOfCacheSort<log_total_buckets>(begin + offset[i], begin + offset[i + 1]);
+        }
+    }
 }
