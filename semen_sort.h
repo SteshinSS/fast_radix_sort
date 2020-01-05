@@ -7,7 +7,7 @@
 #include <mmintrin.h>
 
 constexpr int MINIMUM_ELEMENTS = 1000;
-constexpr int ELEMENTS_IN_CACHE = 8000;
+constexpr int ELEMENTS_IN_CACHE = 40000;
 constexpr uint32_t CACHE_LINE_SIZE = 64;
 
 template <class RandomAccessIterator>
@@ -315,16 +315,15 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
         }
 
         /*
-         * There is possibility to write buffer straight into memory, without caching. Though I managed to
-         * use _mm_stream_si32 intrinsic, it make things slower. I couldn't run _mm512_stream_si512, but
-         * it should be faster.
+         * There is possibility to write buffer straight into memory, without caching. I tried _mm256_stream_si256,
+         * but saw no improvements. There could be difference with AVX512, but unfortunately I haven't got these instructions.
          */
 
         /*
-        if (__builtin_expect((buffer_offsets[bucket] == 0), 0)) {
-            for (size_t i = 0; i < items_per_cache_line; ++i) {
-                _mm_stream_si32(&(*(begin + bucket_offsets[bucket])), buffers[bucket][i]);
-            }
+        if (__builtin_expect((buffer_offsets[bucket] == 0), 1)) {
+            //_mm512_stream_si512(reinterpret_cast<__m512i *>(&(*(begin + bucket_offsets[bucket]))), *(reinterpret_cast<__m512i*>((buffers[bucket]))));
+            _mm256_stream_si256(reinterpret_cast<__m256i*>(&(*(begin + bucket_offsets[bucket]))), *(reinterpret_cast<__m256i*>((buffers[bucket]))));
+            _mm256_stream_si256(reinterpret_cast<__m256i*>(&(*(begin + bucket_offsets[bucket] + 32 / sizeof(ValueType)))), *(reinterpret_cast<__m256i*>((buffers[bucket] + 32 / sizeof(ValueType)))));
         }  else {
             for (size_t i = buffer_offsets[bucket]; i < items_per_cache_line; ++i) {
                 *(begin + bucket_offsets[bucket] + i - buffer_offsets[bucket]) = buffers[bucket][i];

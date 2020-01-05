@@ -113,10 +113,10 @@ void RunBenchmarks() {
 
     int a = complexity_generator(mersenne_engine);
     int b = complexity_generator(mersenne_engine);
-    std::vector<int> vec = GenerateArray(10'000'000, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), mersenne_engine);
+    std::vector<int> vec = GenerateArray(100'000'000, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), mersenne_engine);
     auto start = std::chrono::high_resolution_clock::now();
     //InCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
-    OutOfCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
+    OutOfCacheSort<std::vector<int>::iterator, 11>(vec.begin(), vec.end());
     //std::sort(vec.begin(), vec.end());
     //boost::sort::spreadsort::spreadsort(vec.begin(), vec.end());
     auto end = std::chrono::high_resolution_clock::now();
