@@ -3,6 +3,8 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <immintrin.h>
+#include <mmintrin.h>
 
 constexpr int MINIMUM_ELEMENTS = 1000;
 constexpr int ELEMENTS_IN_CACHE = 8000;
@@ -308,13 +310,26 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
         }
 
         // write cache line into the initial array
+        for (size_t i = buffer_offsets[bucket]; i < items_per_cache_line; ++i) {
+            *(begin + bucket_offsets[bucket] + i - buffer_offsets[bucket]) = buffers[bucket][i];
+        }
+
+        /*
+         * There is possibility to write buffer straight into memory, without caching. Though I managed to
+         * use _mm_stream_si32 intrinsic, it make things slower. I couldn't run _mm512_stream_si512, but
+         * it should be faster.
+         */
+
+        /*
         if (__builtin_expect((buffer_offsets[bucket] == 0), 0)) {
+            for (size_t i = 0; i < items_per_cache_line; ++i) {
+                _mm_stream_si32(&(*(begin + bucket_offsets[bucket])), buffers[bucket][i]);
+            }
+        }  else {
             for (size_t i = buffer_offsets[bucket]; i < items_per_cache_line; ++i) {
                 *(begin + bucket_offsets[bucket] + i - buffer_offsets[bucket]) = buffers[bucket][i];
             }
-        }  else {
-
-        }
+        } */
 
         bucket_offsets[bucket] += items_per_cache_line - buffer_offsets[bucket];
         if (bucket_offsets[bucket] != buckets_ends[bucket]) {
