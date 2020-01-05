@@ -91,12 +91,12 @@ void RunStressTest2(int total_iterations) {
         std::vector<int> semen_15_vec = vec;
         std::sort(std_vec.begin(), std_vec.end());
 
-        OutOfCacheSort<1U>(semen_1_vec.begin(), semen_1_vec.end());
-        OutOfCacheSort<2U>(semen_2_vec.begin(), semen_2_vec.end());
-        OutOfCacheSort<3U>(semen_3_vec.begin(), semen_3_vec.end());
-        OutOfCacheSort<4U>(semen_4_vec.begin(), semen_4_vec.end());
-        OutOfCacheSort<10U>(semen_10_vec.begin(), semen_10_vec.end());
-        OutOfCacheSort<15U>(semen_15_vec.begin(), semen_15_vec.end());
+        OutOfCacheSort<std::vector<int>::iterator, 1U>(semen_1_vec.begin(), semen_1_vec.end());
+        OutOfCacheSort<std::vector<int>::iterator, 2U>(semen_2_vec.begin(), semen_2_vec.end());
+        OutOfCacheSort<std::vector<int>::iterator, 3U>(semen_3_vec.begin(), semen_3_vec.end());
+        OutOfCacheSort<std::vector<int>::iterator, 4U>(semen_4_vec.begin(), semen_4_vec.end());
+        OutOfCacheSort<std::vector<int>::iterator, 10U>(semen_10_vec.begin(), semen_10_vec.end());
+        OutOfCacheSort<std::vector<int>::iterator, 15U>(semen_15_vec.begin(), semen_15_vec.end());
 
         if (std_vec != semen_1_vec || std_vec != semen_2_vec || std_vec != semen_3_vec ||
             std_vec != semen_4_vec || std_vec != semen_10_vec || std_vec != semen_15_vec) {
@@ -123,7 +123,7 @@ void RunBenchmarks() {
     //std::reverse(vec.begin(), vec.end());
     auto start = std::chrono::high_resolution_clock::now();
     //InCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
-    OutOfCacheSort<10>(vec.begin(), vec.end());
+    OutOfCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
     //std::sort(vec.begin(), vec.end());
     //boost::sort::spreadsort::spreadsort(vec.begin(), vec.end());
     auto end = std::chrono::high_resolution_clock::now();

@@ -6,6 +6,7 @@
 
 constexpr int MINIMUM_ELEMENTS = 1000;
 constexpr int ELEMENTS_IN_CACHE = 8000;
+constexpr uint32_t CACHE_LINE_SIZE = 64;
 
 template <class RandomAccessIterator>
 inline bool
@@ -173,99 +174,155 @@ void InCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
     }
 }
 
-template<uint32_t log_total_buckets>
-void OutOfCacheSort(const std::vector<int>::iterator& begin, const std::vector<int>::iterator& end) {
-    const int total_buckets = 1U << log_total_buckets;
-    std::vector<int>::iterator min;
-    std::vector<int>::iterator max;
+template<class RandomAccessIterator, uint32_t log_total_buckets>
+void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
+    using ValueType = typename std::iterator_traits<RandomAccessIterator>::value_type;
+
+    RandomAccessIterator min;
+    RandomAccessIterator max;
     if (is_sorted_or_find_extremes(begin, end, max, min)) {
         return;
     }
+
+    /*
+     * Map extremes into unsigned is such way:
+     * x -> x + (-int::min)
+     * int::min -> 0
+     * 0 -> int::max - 1
+     * int::max -> unsigned::max
+     */
     unsigned u_min = (*min) ^ (1U << (8 * sizeof(int) - 1));
     unsigned u_max = (*max) ^ (1U << (8 * sizeof(int) - 1));
     const uint32_t log_range = rough_log_2_size(u_max - u_min);
     const uint32_t log_div = log_range > log_total_buckets ? log_range - log_total_buckets : 0;
 
-    std::vector<uint32_t> histogram(total_buckets, 0);
-    for (std::vector<int>::iterator item = begin; item != end; ++item) {
+    const int total_buckets = 1U << log_total_buckets;
+    std::vector<size_t> histogram(total_buckets, 0);
+    for (RandomAccessIterator item = begin; item != end; ++item) {
         histogram[GetKey(*item, u_min, log_div)]++;
     }
-    std::vector<int> ends(total_buckets);
-    ends[0] = histogram[0];
+    std::vector<size_t> buckets_ends(total_buckets);
+    buckets_ends[0] = histogram[0];
     for (int i = 1; i < total_buckets; ++i) {
-        ends[i] = ends[i - 1] + histogram[i];
+        buckets_ends[i] = buckets_ends[i - 1] + histogram[i];
     }
 
-    std::vector<int> buffer_pos(total_buckets, 0);
-    std::vector<int> offset(total_buckets, 0);
-    std::vector<size_t> buffer_offset(total_buckets, 0);
+    /*
+     * In this sort we will use software buffer for storing and permutating elements.
+     * There is buffer (buffers[p]) for every bucket (p). Each buffer is size of cache line.
+     * We will read cache line from initial array, permutate elements and write cache line back, when buffer is ready.
+     */
+    const size_t items_per_cache_line = CACHE_LINE_SIZE / sizeof(ValueType);
+    std::vector<std::vector<ValueType>> buffers(total_buckets, std::vector<ValueType>(items_per_cache_line));
 
-    const size_t cacheline_size = 64 / sizeof(int);
-    std::vector<std::vector<int>> buffer(total_buckets, std::vector<int>(cacheline_size, 0));
-    uint32_t start = 0;
-    for (int i = 0; i < total_buckets; ++i) {
-        buffer_offset[i] = (reinterpret_cast<size_t>(&(*(begin + start))) % 64) / sizeof(int);
-        if (ends[i] - start < cacheline_size) {
-            buffer_offset[i] = std::max(buffer_offset[i], cacheline_size - (ends[i] - start));
+    /*
+     * We will insert right elements from the buffer start, so the end will contain dirty elements,
+     * which should be move into some other buffer. The position of first dirty element is in the dirty_positions[p].
+     */
+    std::vector<size_t> dirty_positions(total_buckets);
+
+    /*
+     * When buffer is full of right elements, we will load it into the initial array. The position of where
+     * we should write our cache line contains in the bucket_offsets[p]. Array's elements before offset are
+     * either in other bucket or already in right position.
+     */
+    std::vector<size_t> bucket_offsets(total_buckets);
+
+    /*
+     * First and last cache lines of a bucket could be half-empty. In this case we will fill buffer from offset,
+     * so start of buffer will be empty. Start of any (dirty or right) elements contains in buffer_offsets[p].
+     */
+    std::vector<size_t> buffer_offsets(total_buckets);
+
+    size_t start = 0;
+    for (size_t p = 0; p < total_buckets; ++p) {
+        /* Let first bucket is big enough and first elements in the array look like this
+         * 0 1 2 3 4 5 6 7 8 9
+         * _ _ _ / \ _ _ _ _ _
+         * Underscores mean placements in cache lines.
+         *
+         * In this case we want take only four first elements in starting buffers.
+         * We will place them at the end of buffers's cache line, so buffers[p] looks like:
+         * {..., 0, 1, 2, 3}
+         * In case of 64 bytes per cache line, and 4-bytes ints, the buffers will starts at position 12 of 16.
+         * buffer_offsets[p] contains this start position.
+         */
+
+        buffer_offsets[p] = (reinterpret_cast<size_t>(&(*(begin + start))) % CACHE_LINE_SIZE) / sizeof(ValueType);
+        if (buckets_ends[p] - start < items_per_cache_line) {
+            // We need special treatment in case of small buckets
+            buffer_offsets[p] = std::max(buffer_offsets[p], items_per_cache_line - (buckets_ends[p] - start));
         }
 
-        for (int j = 0; j < (cacheline_size - buffer_offset[i]); ++j) {
-            buffer[i][j + buffer_offset[i]] = *(begin + start + j);
+        // Copying elements into the buffer
+        for (int j = 0; j < (items_per_cache_line - buffer_offsets[p]); ++j) {
+            buffers[p][j + buffer_offsets[p]] = *(begin + start + j);
         }
-        buffer_pos[i] = buffer_offset[i];
-        offset[i] = start;
-        start += histogram[i];
+        dirty_positions[p] = buffer_offsets[p];
+        bucket_offsets[p] = start;
+        start += histogram[p];
     }
-    int current = *begin;
-    int start_bucket = 0;
-    int bucket = -1;
-    int pos;
 
-    while (start_bucket < total_buckets && offset[start_bucket] == ends[start_bucket]) {
+    ValueType current;
+    size_t start_bucket = 0;
+    size_t bucket = 1;
+    size_t pos;
+
+    // Find first non-empty bucket
+    while (start_bucket < total_buckets && bucket_offsets[start_bucket] == buckets_ends[start_bucket]) {
         ++start_bucket;
     }
-    if (start_bucket == total_buckets) {
-        // return
-    }
-    current = buffer[start_bucket][buffer_pos[start_bucket]];
-    bool we_done = false;
+    current = buffers[start_bucket][dirty_positions[start_bucket]];
+    bool is_done = false;
+
+    /*
+     * The main loop works in such way: we choose first dirty item to start. Next we permutate elements
+     * until any of two events occur: either the permutation cycle is over or we filled the cache line. If we done a
+     * permutation cycle, we choose next dirty element and repeat the cycle. In the second case, we place cache line
+     * in the initial array and load next cache line into the buffer.
+     */
     do {
         do {
             if (bucket == start_bucket) {
+                // permutation cycle is over, so current is already placed in right buffer
                 start_bucket = 0;
-                while (start_bucket < total_buckets && offset[start_bucket] == ends[start_bucket]) {
+                while (start_bucket < total_buckets && bucket_offsets[start_bucket] == buckets_ends[start_bucket]) {
                     ++start_bucket;
                 }
                 if (start_bucket == total_buckets) {
-                    we_done = true;
-                    break; // WARNING
+                    // all buckets are full, all elements are in the right places
+                    is_done = true;
+                    break;
                 }
-                current = buffer[start_bucket][buffer_pos[start_bucket]];
+                current = buffers[start_bucket][dirty_positions[start_bucket]];
             }
             bucket = GetKey(current, u_min, log_div);
-            pos = buffer_pos[bucket]++;
-            std::swap(buffer[bucket][pos], current);
-        } while (pos != cacheline_size - 1);
-        if (we_done) {
+            pos = dirty_positions[bucket]++;
+            std::swap(buffers[bucket][pos], current);
+        } while (pos != items_per_cache_line - 1);
+        if (is_done) {
             break;
         }
-        for (int i = buffer_offset[bucket]; i < cacheline_size; ++i) {
-            *(begin + offset[bucket] + i - buffer_offset[bucket]) = buffer[bucket][i];
+
+        // write cache line into the initial array
+        for (size_t i = buffer_offsets[bucket]; i < items_per_cache_line; ++i) {
+            *(begin + bucket_offsets[bucket] + i - buffer_offsets[bucket]) = buffers[bucket][i];
         }
-        offset[bucket] += cacheline_size - buffer_offset[bucket];
-        if (offset[bucket] != ends[bucket]) {
-            if (ends[bucket] - offset[bucket] < cacheline_size) {
-                buffer_offset[bucket] = cacheline_size - (ends[bucket] - offset[bucket]);
-                for (int i = 0; i < cacheline_size - buffer_offset[bucket]; ++i) {
-                    buffer[bucket][i + buffer_offset[bucket]] = *(begin + offset[bucket] + i);
+        bucket_offsets[bucket] += items_per_cache_line - buffer_offsets[bucket];
+        if (bucket_offsets[bucket] != buckets_ends[bucket]) {
+            // load next cache line
+            if (buckets_ends[bucket] - bucket_offsets[bucket] < items_per_cache_line) {
+                buffer_offsets[bucket] = items_per_cache_line - (buckets_ends[bucket] - bucket_offsets[bucket]);
+                for (int i = 0; i < items_per_cache_line - buffer_offsets[bucket]; ++i) {
+                    buffers[bucket][i + buffer_offsets[bucket]] = *(begin + bucket_offsets[bucket] + i);
                 }
-                buffer_pos[bucket] = buffer_offset[bucket];
+                dirty_positions[bucket] = buffer_offsets[bucket];
             } else {
-                buffer_offset[bucket] = 0;
-                for (int i = 0; i < cacheline_size; ++i) {
-                    buffer[bucket][i] = *(begin + offset[bucket] + i);
+                buffer_offsets[bucket] = 0;
+                for (int i = 0; i < items_per_cache_line; ++i) {
+                    buffers[bucket][i] = *(begin + bucket_offsets[bucket] + i);
                 }
-                buffer_pos[bucket] = 0;
+                dirty_positions[bucket] = 0;
             }
         }
     } while (true);
@@ -273,27 +330,27 @@ void OutOfCacheSort(const std::vector<int>::iterator& begin, const std::vector<i
         return;
     }
 
-    if (offset.front() > 1) {
-        if (offset.front() < MINIMUM_ELEMENTS) {
-            std::sort(begin, begin + offset.front());
-        } else if (offset.front() < ELEMENTS_IN_CACHE) {
-            InCacheSort<std::vector<int>::iterator, log_total_buckets>(begin , begin + offset.front());
+    if (bucket_offsets.front() > 1) {
+        if (bucket_offsets.front() < MINIMUM_ELEMENTS) {
+            std::sort(begin, begin + bucket_offsets.front());
+        } else if (bucket_offsets.front() < ELEMENTS_IN_CACHE) {
+            InCacheSort<std::vector<int>::iterator, log_total_buckets>(begin , begin + bucket_offsets.front());
         }
         else {
-            OutOfCacheSort<log_total_buckets>(begin, begin + offset.front());
+            OutOfCacheSort<RandomAccessIterator, log_total_buckets>(begin, begin + bucket_offsets.front());
         }
     }
-    for (unsigned i = 0; i + 1 < offset.size(); ++i) {
-        if (offset[i + 1] - offset[i] <= 1) {
+    for (size_t i = 0; i + 1 < bucket_offsets.size(); ++i) {
+        if (bucket_offsets[i + 1] - bucket_offsets[i] <= 1) {
             continue;
         }
-        if (offset[i + 1] - offset[i] < MINIMUM_ELEMENTS) {
-            std::sort(begin + offset[i], begin + offset[i + 1]);
-        } else if (offset[i + 1] - offset[i] < ELEMENTS_IN_CACHE) {
-            InCacheSort<std::vector<int>::iterator, log_total_buckets>(begin + offset[i], begin + offset[i + 1]);
+        if (bucket_offsets[i + 1] - bucket_offsets[i] < MINIMUM_ELEMENTS) {
+            std::sort(begin + bucket_offsets[i], begin + bucket_offsets[i + 1]);
+        } else if (bucket_offsets[i + 1] - bucket_offsets[i] < ELEMENTS_IN_CACHE) {
+            InCacheSort<std::vector<int>::iterator, log_total_buckets>(begin + bucket_offsets[i], begin + bucket_offsets[i + 1]);
         }
         else {
-            OutOfCacheSort<log_total_buckets>(begin + offset[i], begin + offset[i + 1]);
+            OutOfCacheSort<RandomAccessIterator, log_total_buckets>(begin + bucket_offsets[i], begin + bucket_offsets[i + 1]);
         }
     }
 }
