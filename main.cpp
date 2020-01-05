@@ -113,27 +113,13 @@ void RunBenchmarks() {
 
     int a = complexity_generator(mersenne_engine);
     int b = complexity_generator(mersenne_engine);
-    std::vector<int> vec = GenerateArray(100, -2, 1, mersenne_engine);
-    std::vector<int> copy = vec;
-    std::vector<int> orig = vec;
-    std::sort(copy.begin(), copy.end());
-    //std::vector<int> vec = {2, 1, 1, -50, 60, 20, 500, -50};
-    //PrintArray(vec);
-    //std::sort(vec.begin(), vec.end());
-    //std::reverse(vec.begin(), vec.end());
+    std::vector<int> vec = GenerateArray(10'000'000, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), mersenne_engine);
     auto start = std::chrono::high_resolution_clock::now();
     //InCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
     OutOfCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
     //std::sort(vec.begin(), vec.end());
     //boost::sort::spreadsort::spreadsort(vec.begin(), vec.end());
     auto end = std::chrono::high_resolution_clock::now();
-    PrintArray(vec);
-    if (copy == vec) {
-        std::cout << "OK" << std::endl;
-    } else {
-        std::cout << "Error: " << std::endl;
-        PrintArray(orig);
-    }
     std::cout << std::chrono::duration <double, std::micro>(end - start).count() << std::endl;
     //std::cout << std::min(a, b) << std::endl;
     //std::cout << std::max(a, b) << std::endl;
@@ -145,7 +131,7 @@ int main()
     for (int i = 0; i < 1000; ++i) {
         RunBenchmarks();
     } */
-    //RunBenchmarks();
-    RunStressTest2(10000);
+    RunBenchmarks();
+    //RunStressTest2(10000);
     return 0;
 }

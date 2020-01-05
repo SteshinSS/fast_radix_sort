@@ -213,7 +213,8 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
      * We will read cache line from initial array, permutate elements and write cache line back, when buffer is ready.
      */
     const size_t items_per_cache_line = CACHE_LINE_SIZE / sizeof(ValueType);
-    std::vector<std::vector<ValueType>> buffers(total_buckets, std::vector<ValueType>(items_per_cache_line));
+    //std::vector<std::vector<ValueType>> buffers(total_buckets, std::vector<ValueType>(items_per_cache_line));
+    ValueType buffers[total_buckets][items_per_cache_line] __attribute__ ((aligned (64)));
 
     /*
      * We will insert right elements from the buffer start, so the end will contain dirty elements,
@@ -285,7 +286,7 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
      */
     do {
         do {
-            if (bucket == start_bucket) {
+            if (__builtin_expect((bucket == start_bucket), 0)) { // haven't check if the difference is significant
                 // permutation cycle is over, so current is already placed in right buffer
                 while (first_dirty_bucket < total_buckets && bucket_offsets[first_dirty_bucket] == buckets_ends[first_dirty_bucket]) {
                     ++first_dirty_bucket;
@@ -307,13 +308,18 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
         }
 
         // write cache line into the initial array
-        for (size_t i = buffer_offsets[bucket]; i < items_per_cache_line; ++i) {
-            *(begin + bucket_offsets[bucket] + i - buffer_offsets[bucket]) = buffers[bucket][i];
+        if (__builtin_expect((buffer_offsets[bucket] == 0), 0)) {
+            for (size_t i = buffer_offsets[bucket]; i < items_per_cache_line; ++i) {
+                *(begin + bucket_offsets[bucket] + i - buffer_offsets[bucket]) = buffers[bucket][i];
+            }
+        }  else {
+
         }
+
         bucket_offsets[bucket] += items_per_cache_line - buffer_offsets[bucket];
         if (bucket_offsets[bucket] != buckets_ends[bucket]) {
             // load next cache line
-            if (buckets_ends[bucket] - bucket_offsets[bucket] < items_per_cache_line) {
+            if (__builtin_expect((buckets_ends[bucket] - bucket_offsets[bucket] < items_per_cache_line), 0)) {
                 buffer_offsets[bucket] = items_per_cache_line - (buckets_ends[bucket] - bucket_offsets[bucket]);
                 for (int i = 0; i < items_per_cache_line - buffer_offsets[bucket]; ++i) {
                     buffers[bucket][i + buffer_offsets[bucket]] = *(begin + bucket_offsets[bucket] + i);
