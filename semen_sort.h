@@ -268,10 +268,12 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
     size_t bucket = 1;
     size_t pos;
 
+    size_t first_dirty_bucket = 0;
     // Find first non-empty bucket
     while (start_bucket < total_buckets && bucket_offsets[start_bucket] == buckets_ends[start_bucket]) {
         ++start_bucket;
     }
+    first_dirty_bucket = start_bucket;
     current = buffers[start_bucket][dirty_positions[start_bucket]];
     bool is_done = false;
 
@@ -285,15 +287,15 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
         do {
             if (bucket == start_bucket) {
                 // permutation cycle is over, so current is already placed in right buffer
-                start_bucket = 0;
-                while (start_bucket < total_buckets && bucket_offsets[start_bucket] == buckets_ends[start_bucket]) {
-                    ++start_bucket;
+                while (first_dirty_bucket < total_buckets && bucket_offsets[first_dirty_bucket] == buckets_ends[first_dirty_bucket]) {
+                    ++first_dirty_bucket;
                 }
-                if (start_bucket == total_buckets) {
+                if (first_dirty_bucket == total_buckets) {
                     // all buckets are full, all elements are in the right places
                     is_done = true;
                     break;
                 }
+                start_bucket = first_dirty_bucket;
                 current = buffers[start_bucket][dirty_positions[start_bucket]];
             }
             bucket = GetKey(current, u_min, log_div);
