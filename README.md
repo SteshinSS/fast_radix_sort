@@ -31,6 +31,9 @@ I have written `boost::spreadsort`-like sort, but it works 40% faster. The russi
 
 Запустим VTune на `boost::spreadsort` и найдем ботлнек.
 ![Boost's bottleneck](boost_vtune.png)
-Видно, что буст упирается в доступ к памяти, которая происходит в случайном (non-consecutive) порядке.
+Видно, что буст упирается в доступ к памяти, которая происходит в случайном (non-consecutive) порядке. Самые тормозящие события: кеш-миссы и tlb-миссы.
 
-Открывает google.scholar и ищем "cache friendly radix sort"
+Открывает google.scholar.com и ищем "cache-friendly radix sort"
+
+## Cache-friendly radix sort
+Это не самая горячая тема Computer Science, но что-то на эту тему есть. В 2010 вышла [статья](https://www.researchgate.net/publication/221213255_Fast_sort_on_CPUs_and_GPUs_a_case_for_bandwidth_oblivious_SIMD_sort) с идеей, как сделать cache-friendly radix sort, хотя и не in-place. В 2014 впервые [описали](http://www.cs.columbia.edu/~orestis/sigmod14I.pdf) in-place алгоритм, который работал с той же идеей. Суть проста: заведем буфер для каждого бакета. Будем переставлять элементы только внутри буферов. Когда какой-нибудь буфер заполняется, сбрасываем его в память и набираем новых элементов. Так мы уменьшим количество TLB-миссов в $L$ раз, где $L$ - количество элементов в одном буфере. Будем использовать буфера длиной в кеш-линию как предлагают авторы статьи.
