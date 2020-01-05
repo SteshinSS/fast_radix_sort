@@ -31,6 +31,6 @@ I have written `boost::spreadsort`-like sort, but it works 40% faster. The russi
 
 Запустим VTune на `boost::spreadsort` и найдем ботлнек.
 ![Boost's bottleneck](boost_vtune.png)
-Видно, что буст упирается в чтение/запись в память, что происходит в случайном (non-consecutive) порядке.
+Видно, что буст упирается в доступ к памяти, которая происходит в случайном (non-consecutive) порядке.
 
 Открывает google.scholar и ищем "cache friendly radix sort"
