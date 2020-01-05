@@ -27,7 +27,7 @@ std::vector<int> GenerateArray(int n, int min, int max, std::mt19937& mersenne_e
     return vec;
 }
 
-void RunStressTest(int total_iterations) {
+void InCacheStressTest(int total_iterations) {
     std::random_device rnd_device;
     std::mt19937 mersenne_engine {rnd_device()};
 
@@ -67,7 +67,7 @@ void RunStressTest(int total_iterations) {
 }
 
 
-void RunStressTest2(int total_iterations) {
+void OutCacheStressTest(int total_iterations) {
     std::random_device rnd_device;
     std::mt19937 mersenne_engine {rnd_device()};
 
@@ -113,25 +113,21 @@ void RunBenchmarks() {
 
     int a = complexity_generator(mersenne_engine);
     int b = complexity_generator(mersenne_engine);
-    std::vector<int> vec = GenerateArray(100'000'000, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), mersenne_engine);
+    std::vector<int> vec = GenerateArray(1'000'000, std::min(a, b), std::max(a, b), mersenne_engine);
     auto start = std::chrono::high_resolution_clock::now();
     //InCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
-    OutOfCacheSort<std::vector<int>::iterator, 11>(vec.begin(), vec.end());
+    //OutOfCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
     //std::sort(vec.begin(), vec.end());
-    //boost::sort::spreadsort::spreadsort(vec.begin(), vec.end());
+    boost::sort::spreadsort::spreadsort(vec.begin(), vec.end());
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << std::chrono::duration <double, std::micro>(end - start).count() << std::endl;
-    //std::cout << std::min(a, b) << std::endl;
-    //std::cout << std::max(a, b) << std::endl;
 }
 
 int main()
 {
-/*
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < 300; ++i) {
         RunBenchmarks();
-    } */
-    RunBenchmarks();
-    //RunStressTest2(10000);
+    }
+
     return 0;
 }
