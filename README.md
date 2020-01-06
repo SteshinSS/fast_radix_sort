@@ -52,3 +52,7 @@ I have written `boost::spreadsort`-like sort, but it works 40% faster. The russi
 
 Из интересного, я раскидал в главном цикле `__builtin_expect`, но они ничего не поменяли.
 
+## Новые результаты
+![Out Cache 10'000'000](OutCache10.png)
+![Boost 10'000'000](Boost10.png)
+
