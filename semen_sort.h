@@ -73,18 +73,19 @@ void InCacheSort(RandomAccessIterator begin, RandomAccessIterator end, unsigned 
         ++bucket;
     }
 
-    int i;
-    int i_end = 0;
+    // filling buckets from right to left
+    int position;
+    int end_position = 0;
     do {
-        ValueType current = *(begin + i_end);
+        ValueType current = *(begin + end_position);
         do {
             unsigned new_bucket = GetKey(current, u_min, log_div);
-            i = --offsets[new_bucket];
-            std::swap(*(begin + i), current);
-        } while (i != i_end);
+            position = --offsets[new_bucket];
+            std::swap(*(begin + position), current);
+        } while (position != end_position);
         do {
-            i_end += histogram[bucket++];
-        } while (bucket != histogram.size() && i_end == offsets[bucket]);
+            end_position += histogram[bucket++];
+        } while (bucket != histogram.size() && end_position == offsets[bucket]);
     } while (bucket != histogram.size());
     if (log_div == 0) {
         return;
@@ -146,18 +147,19 @@ void InCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
         ++bucket;
     }
 
-    int i;
-    int i_end = 0;
+    // filling buckets from right to left
+    int position;
+    int end_position = 0;
     do {
-        ValueType current = *(begin + i_end);
+        ValueType current = *(begin + end_position);
         do {
             unsigned new_bucket = GetKey(current, u_min, log_div);
-            i = --offsets[new_bucket];
-            std::swap(*(begin + i), current);
-        } while (i != i_end);
+            position = --offsets[new_bucket];
+            std::swap(*(begin + position), current);
+        } while (position != end_position);
         do {
-            i_end += histogram[bucket++];
-        } while (bucket != histogram.size() && i_end == offsets[bucket]);
+            end_position += histogram[bucket++];
+        } while (bucket != histogram.size() && end_position == offsets[bucket]);
     } while (bucket != histogram.size());
     if (log_div == 0) {
         return;
