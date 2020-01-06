@@ -33,7 +33,7 @@ I have written `boost::spreadsort`-like sort, but it works 40% faster for 1'000'
 
 Запустим VTune на `boost::spreadsort` и найдем ботлнек.
 ![Boost's bottleneck](boost_vtune.png)
-Видно, что буст упирается в доступ к памяти, которая происходит в случайном (non-consecutive) порядке. Самые тормозящие события: кеш-миссы и tlb-миссы.
+Видно, что буст упирается в доступ к памяти, которая происходит в случайном (non-consecutive) порядке. Самые тормозящие события: кеш-миссы и TLB-миссы.
 
 Открывает google.scholar.com и ищем "cache-friendly radix sort"
 
