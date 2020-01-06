@@ -5,8 +5,9 @@
 #include <algorithm>
 #include <immintrin.h>
 #include <mmintrin.h>
+#include <cstring>
 
-constexpr int MINIMUM_ELEMENTS = 100;
+constexpr int MINIMUM_ELEMENTS = 1000;
 constexpr int ELEMENTS_IN_CACHE = 10000;
 constexpr uint32_t CACHE_LINE_SIZE = 64;
 
@@ -362,7 +363,7 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
         if (bucket_offsets.front() < MINIMUM_ELEMENTS) {
             std::sort(begin, begin + bucket_offsets.front());
         } else if (bucket_offsets.front() < ELEMENTS_IN_CACHE) {
-            InCacheSort<std::vector<int>::iterator, 5>(begin , begin + bucket_offsets.front(), u_min, u_min + (1 << log_div) - 1);
+            InCacheSort<std::vector<int>::iterator, log_total_buckets>(begin , begin + bucket_offsets.front(), u_min, u_min + (1 << log_div) - 1);
         }
         else {
             OutOfCacheSort<RandomAccessIterator, log_total_buckets>(begin, begin + bucket_offsets.front());
@@ -375,7 +376,7 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
         if (bucket_offsets[i + 1] - bucket_offsets[i] < MINIMUM_ELEMENTS) {
             std::sort(begin + bucket_offsets[i], begin + bucket_offsets[i + 1]);
         } else if (bucket_offsets[i + 1] - bucket_offsets[i] < ELEMENTS_IN_CACHE) {
-            InCacheSort<std::vector<int>::iterator, 4>(begin + bucket_offsets[i], begin + bucket_offsets[i + 1], u_min + ((i + 1) << log_div), u_min + ((i + 2) << log_div) - 1);
+            InCacheSort<std::vector<int>::iterator, log_total_buckets >(begin + bucket_offsets[i], begin + bucket_offsets[i + 1], u_min + ((i + 1) << log_div), u_min + ((i + 2) << log_div) - 1);
         }
         else {
             OutOfCacheSort<RandomAccessIterator, log_total_buckets>(begin + bucket_offsets[i], begin + bucket_offsets[i + 1]);

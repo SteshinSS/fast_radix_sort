@@ -4,8 +4,8 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/kpenblw/untitled/main.cpp" "/home/kpenblw/untitled/build/CMakeFiles/untitled.dir/main.cpp.o"
-  "/home/kpenblw/untitled/semen_sort.cpp" "/home/kpenblw/untitled/build/CMakeFiles/untitled.dir/semen_sort.cpp.o"
+  "/home/simon/CLionProjects/fast_radix_sort/main.cpp" "/home/simon/CLionProjects/fast_radix_sort/build/CMakeFiles/untitled.dir/main.cpp.o"
+  "/home/simon/CLionProjects/fast_radix_sort/semen_sort.cpp" "/home/simon/CLionProjects/fast_radix_sort/build/CMakeFiles/untitled.dir/semen_sort.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 

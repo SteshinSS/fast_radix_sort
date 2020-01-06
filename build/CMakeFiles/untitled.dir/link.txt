@@ -1,1 +1,1 @@
-/usr/bin/c++   -Og -march=native  -rdynamic CMakeFiles/untitled.dir/main.cpp.o CMakeFiles/untitled.dir/semen_sort.cpp.o  -o untitled 
+/usr/bin/c++   -O0 -g -march=native  -rdynamic CMakeFiles/untitled.dir/main.cpp.o CMakeFiles/untitled.dir/semen_sort.cpp.o  -o untitled 
