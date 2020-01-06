@@ -1,4 +1,4 @@
-I have written `boost::spreadsort`-like sort, but it works 40% faster. The russian post is about how I made it.
+I have written `boost::spreadsort`-like sort, but it works 40% faster for 1'000'000 32-bit ints. The russian post is about how I made it.
 
 # Сделаем spreadsort быстрым снова
 ## Задача
