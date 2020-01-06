@@ -106,7 +106,7 @@ void OutCacheStressTest(int total_iterations) {
     }
 }
 
-void RunBenchmarks() {
+void RunBenchmark() {
     std::random_device rnd_device;
     std::mt19937 mersenne_engine {rnd_device()};
     std::uniform_int_distribution<int> complexity_generator {std::numeric_limits<int>::min(), std::numeric_limits<int>::max()};
@@ -114,6 +114,7 @@ void RunBenchmarks() {
     int a = complexity_generator(mersenne_engine);
     int b = complexity_generator(mersenne_engine);
     std::vector<int> vec = GenerateArray(10'000'000, std::min(a, b), std::max(a, b), mersenne_engine);
+
     auto start = std::chrono::high_resolution_clock::now();
     //InCacheSort<std::vector<int>::iterator, 10>(vec.begin(), vec.end());
     OutOfCacheSort<std::vector<int>::iterator, 11>(vec.begin(), vec.end());
@@ -125,10 +126,6 @@ void RunBenchmarks() {
 
 int main()
 {
-
-    for (int i = 0; i < 300; ++i) {
-        RunBenchmarks();
-    }
-
+    RunBenchmark();
     return 0;
 }

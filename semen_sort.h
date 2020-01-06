@@ -7,8 +7,8 @@
 #include <mmintrin.h>
 #include <cstring>
 
-constexpr int MINIMUM_ELEMENTS = 1000;
-constexpr int ELEMENTS_IN_CACHE = 10000;
+constexpr int ELEMENTS_TO_RUN_STD_SORT = 1000;
+constexpr int ELEMENTS_TO_RUN_IN_CACHE = 10000;
 constexpr uint32_t CACHE_LINE_SIZE = 64;
 
 template <class RandomAccessIterator>
@@ -94,14 +94,14 @@ void InCacheSort(RandomAccessIterator begin, RandomAccessIterator end, unsigned 
         if (offsets[i + 1] - offsets[i] <= 1) {
             continue;
         }
-        if (offsets[i + 1] - offsets[i] < MINIMUM_ELEMENTS) {
+        if (offsets[i + 1] - offsets[i] < ELEMENTS_TO_RUN_STD_SORT) {
             std::sort(begin + offsets[i], begin + offsets[i + 1]);
         } else {
             InCacheSort<RandomAccessIterator, log_total_buckets>(begin + offsets[i], begin + offsets[i + 1], u_min + (i << log_div), u_min + ((i + 1) << log_div) - 1);
         }
     }
     if (end - (begin + offsets.back()) > 1) {
-        if (end - (begin + offsets.back()) < MINIMUM_ELEMENTS) {
+        if (end - (begin + offsets.back()) < ELEMENTS_TO_RUN_STD_SORT) {
             std::sort(begin + offsets.back(), end);
         } else {
             InCacheSort<RandomAccessIterator, log_total_buckets>(begin + offsets.back(), end, u_min + ((offsets.size() - 1) << log_div), u_max);
@@ -166,7 +166,7 @@ void InCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
         if (offsets[i + 1] - offsets[i] <= 1) {
             continue;
         }
-        if (offsets[i + 1] - offsets[i] < MINIMUM_ELEMENTS) {
+        if (offsets[i + 1] - offsets[i] < ELEMENTS_TO_RUN_STD_SORT) {
             std::sort(begin + offsets[i], begin + offsets[i + 1]);
         } else {
             InCacheSort<RandomAccessIterator, log_total_buckets>(begin + offsets[i], begin + offsets[i + 1], u_min + (i << log_div), u_min + ((i + 1) << log_div) - 1);
@@ -174,7 +174,7 @@ void InCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
     }
     if (end - (begin + offsets.back()) > 1) {
         if (end - (begin + offsets.back()) > 1) {
-            if (end - (begin + offsets.back()) < MINIMUM_ELEMENTS) {
+            if (end - (begin + offsets.back()) < ELEMENTS_TO_RUN_STD_SORT) {
                 std::sort(begin + offsets.back(), end);
             } else {
                 InCacheSort<RandomAccessIterator, log_total_buckets>(begin + offsets.back(), end, u_min + ((offsets.size() - 1) << log_div), u_max);
@@ -360,9 +360,9 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
     }
 
     if (bucket_offsets.front() > 1) {
-        if (bucket_offsets.front() < MINIMUM_ELEMENTS) {
+        if (bucket_offsets.front() < ELEMENTS_TO_RUN_STD_SORT) {
             std::sort(begin, begin + bucket_offsets.front());
-        } else if (bucket_offsets.front() < ELEMENTS_IN_CACHE) {
+        } else if (bucket_offsets.front() < ELEMENTS_TO_RUN_IN_CACHE) {
             InCacheSort<std::vector<int>::iterator, log_total_buckets>(begin , begin + bucket_offsets.front(), u_min, u_min + (1 << log_div) - 1);
         }
         else {
@@ -373,9 +373,9 @@ void OutOfCacheSort(RandomAccessIterator begin, RandomAccessIterator end) {
         if (bucket_offsets[i + 1] - bucket_offsets[i] <= 1) {
             continue;
         }
-        if (bucket_offsets[i + 1] - bucket_offsets[i] < MINIMUM_ELEMENTS) {
+        if (bucket_offsets[i + 1] - bucket_offsets[i] < ELEMENTS_TO_RUN_STD_SORT) {
             std::sort(begin + bucket_offsets[i], begin + bucket_offsets[i + 1]);
-        } else if (bucket_offsets[i + 1] - bucket_offsets[i] < ELEMENTS_IN_CACHE) {
+        } else if (bucket_offsets[i + 1] - bucket_offsets[i] < ELEMENTS_TO_RUN_IN_CACHE) {
             InCacheSort<std::vector<int>::iterator, log_total_buckets >(begin + bucket_offsets[i], begin + bucket_offsets[i + 1], u_min + ((i + 1) << log_div), u_min + ((i + 2) << log_div) - 1);
         }
         else {
