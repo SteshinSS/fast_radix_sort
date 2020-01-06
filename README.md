@@ -56,3 +56,10 @@ I have written `boost::spreadsort`-like sort, but it works 40% faster. The russi
 ![Out Cache 10'000'000](OutCache10.png)
 ![Boost 10'000'000](Boost10.png)
 Я отсортировал 10'000'000 32-битных интов. Удостоверимся, что новый алгоритм опережает буст с помощью известного статистического теста "eye-ball statistics". 
+
+Выше мы сравнили тривиальный In-Cache с `boost::spreadsort`. Сравним между собой In-Cache и новый Out-Cache алгоритмы
+![Out Cache 1'000'000](Out1.png)
+![In Cache 1'000'000](In1.png)
+Мы ускорились. Более того, Out-Cache алгоритм работает на 40% быстрей буста для 1'000'000 чисел. 
+
+
