@@ -55,4 +55,4 @@ I have written `boost::spreadsort`-like sort, but it works 40% faster. The russi
 ## Новые результаты
 ![Out Cache 10'000'000](OutCache10.png)
 ![Boost 10'000'000](Boost10.png)
-
+Я отсортировал 10'000'000 32-битных интов. Удостоверимся, что новый алгоритм опережает буст с помощью известного статистического теста "eye-ball statistics". 
